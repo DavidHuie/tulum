@@ -15,8 +15,8 @@ var (
 func main() {
 	log.SetOutput(os.Stderr)
 
-	flag.BoolVar(&enc, "enc", false, "encrypt from stdin")
-	flag.BoolVar(&dec, "dec", false, "dec from stdin")
+	flag.BoolVar(&enc, "enc", false, "encrypt from stdin, writing output to stdout")
+	flag.BoolVar(&dec, "dec", false, "decrypt from stdin, writing output to stdout")
 	flag.StringVar(&keyFile, "key", "", "the path to the key")
 	flag.Parse()
 
@@ -33,8 +33,6 @@ func main() {
 		if err := encrypt(os.Stdin, os.Stdout, keyFile); err != nil {
 			log.Fatalf("Error encrypting: %s", err)
 		}
-
-		return
 	case dec:
 		if keyFile == "" {
 			log.Fatal("key path not provided")
@@ -42,9 +40,7 @@ func main() {
 		if err := decrypt(os.Stdin, os.Stdout, keyFile); err != nil {
 			log.Fatalf("Error decrypting: %s", err)
 		}
-
-		return
+	default:
+		flag.Usage()
 	}
-
-	flag.Usage()
 }
