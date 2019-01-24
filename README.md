@@ -1,7 +1,7 @@
 # Tulum
 
 Tulum is a simple tool for encrypting and decrypting data without any
-knowledge of cryptography. Tulum only has two zero configuration
+knowledge of cryptography. Tulum only has two, zero configuration
 operations, preventing confusion and user error. By default, Tulum
 uses 128-bit AES-GCM encryption, which provides both encryption and
 authentication (decryption fails if the encrypted data is
