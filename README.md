@@ -36,7 +36,12 @@ Usage of ./tulum:
 
 To encrypt the file `f`, storing the key in `key.asc`:
 ```shell
-% cat f | tulum -key key.asc -enc > f.enc
+% cat f | tulum -enc > f.enc
+```
+
+Optionally, to encrypt the file `f`, storing the key in `my-key.asc`:
+```shell
+% cat f | tulum -key my-key.asc -enc > f.enc
 ```
 
 To decrypt the file `f.enc` with the key `key.asc`:
