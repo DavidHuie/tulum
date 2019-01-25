@@ -34,12 +34,14 @@ Usage of ./tulum:
     	the path to the key
 ```
 
-To encrypt the file `f`, storing the key in `key.asc`:
+To encrypt the file `f`, storing the key in `key.asc` and the
+ciphertext (the encrypted file) in `f.enc`:
 ```shell
 % cat f | tulum -enc > f.enc
 ```
 
-Optionally, to encrypt the file `f`, storing the key in `my-key.asc`:
+Optionally, to encrypt the file `f`, storing the key in `my-key.asc`
+and the ciphertext in `f.enc`:
 ```shell
 % cat f | tulum -key my-key.asc -enc > f.enc
 ```
