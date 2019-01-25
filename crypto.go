@@ -7,10 +7,11 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/gob"
-	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -122,6 +123,7 @@ func encrypt(r io.Reader, w io.Writer, keyPath string) error {
 func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	ks, err := getKeys(keyPath)
 	if err != nil {
+		fmt.Println("hey")
 		return err
 	}
 	tmp, err := ioutil.TempFile("/tmp", "tulum-")
@@ -187,9 +189,12 @@ func persistKeys(ks *keys, path string) error {
 	}
 	defer f.Close()
 
-	enc := hex.NewEncoder(f)
+	enc := base64.NewEncoder(base64.StdEncoding, f)
 
 	if err := gob.NewEncoder(enc).Encode(ks); err != nil {
+		return err
+	}
+	if err := enc.Close(); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(f, "\n"); err != nil {
@@ -206,8 +211,10 @@ func getKeys(path string) (*keys, error) {
 	}
 	defer f.Close()
 
+	dec := base64.NewDecoder(base64.StdEncoding, f)
+
 	var ks *keys
-	if err := gob.NewDecoder(hex.NewDecoder(f)).Decode(&ks); err != nil {
+	if err := gob.NewDecoder(dec).Decode(&ks); err != nil {
 		return nil, err
 	}
 

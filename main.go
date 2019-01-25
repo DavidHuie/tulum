@@ -23,7 +23,6 @@ func main() {
 	switch {
 	case enc:
 		if keyFile == "" {
-			log.Printf("Key path not provided, using key.asc.")
 			keyFile = "key.asc"
 		}
 		if err := encrypt(os.Stdin, os.Stdout, keyFile); err != nil {
@@ -31,7 +30,7 @@ func main() {
 		}
 	case dec:
 		if keyFile == "" {
-			log.Fatal("Key path not provided.")
+			keyFile = "key.asc"
 		}
 		if err := decrypt(os.Stdin, os.Stdout, keyFile); err != nil {
 			log.Fatalf("Error decrypting: %s", err)
