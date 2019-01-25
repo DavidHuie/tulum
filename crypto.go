@@ -18,8 +18,8 @@ const (
 )
 
 type message struct {
-	ciphertext []byte
-	nonce      []byte
+	CT    []byte
+	Nonce []byte
 }
 
 func encrypt(r io.Reader, w io.Writer, keyPath string) error {
@@ -49,14 +49,13 @@ func encrypt(r io.Reader, w io.Writer, keyPath string) error {
 	ct := aead.Seal(nil, nonce, pt, nil)
 
 	msg := &message{
-		ciphertext: ct,
-		nonce:      nonce,
+		CT:    ct,
+		Nonce: nonce,
 	}
 
 	if err := gob.NewEncoder(w).Encode(msg); err != nil {
 		return err
 	}
-
 	if err := persistKey(key, keyPath); err != nil {
 		return err
 	}
@@ -84,7 +83,7 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
-	pt, err := aead.Open(nil, msg.nonce, msg.ciphertext, nil)
+	pt, err := aead.Open(nil, msg.Nonce, msg.CT, nil)
 	if err != nil {
 		return err
 	}
