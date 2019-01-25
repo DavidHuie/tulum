@@ -25,7 +25,7 @@ go get -u github.com/DavidHuie/tulum
 
 ```text
 % tulum -h
-Usage of ./tulum:
+Usage of tulum:
   -dec
     	decrypt from stdin, writing output to stdout
   -enc
