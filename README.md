@@ -33,13 +33,18 @@ go get -u github.com/DavidHuie/tulum
 
 ```text
 % tulum -h
-Usage of tulum:
+Tulum is a simple, fast, zero-configuration file encryption tool.
+
+Usage:
+	tulum [flags] [file]
+
+Flags:
   -dec
-    	decrypt from stdin, writing output to stdout
+    	decrypt from file argument or stdin, writing output to stdout
   -enc
-    	encrypt from stdin, writing output to stdout
+    	encrypt from file argument or stdin, writing output to stdout (default true)
   -key string
-    	the path to the key
+    	the path to the key (default "key.asc")
 ```
 
 To encrypt the file `f`, storing the key in `key.asc` and the

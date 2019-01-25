@@ -21,7 +21,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Tulum is a simple, fast, zero-configuration file encryption tool.\n")
 		fmt.Fprintln(flag.CommandLine.Output())
 		fmt.Fprintln(flag.CommandLine.Output(), "Usage:")
-		fmt.Fprintln(flag.CommandLine.Output(), "\ttulum [flags] [FILE]")
+		fmt.Fprintln(flag.CommandLine.Output(), "\ttulum [flags] [file]")
 		fmt.Fprintln(flag.CommandLine.Output())
 		fmt.Fprintln(flag.CommandLine.Output(), "Flags:")
 		flag.PrintDefaults()
