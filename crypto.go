@@ -22,7 +22,7 @@ const (
 	encIVSize  = 16
 )
 
-type ctPayload struct {
+type ctHeader struct {
 	IV     []byte
 	MAC    []byte
 	CTSize int64
@@ -78,21 +78,21 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	ct := &ctPayload{
+	header := &ctHeader{
 		IV:     iv,
 		MAC:    mac.Sum(nil),
 		CTSize: ctSize,
 	}
 
-	// Store ct's size as an int64 in w, followed by ct and the
-	// ciphertext. This ensures that we can read out ct precisely
-	// later.
+	// Store header's size as an int64 in w, followed by the
+	// header and the ciphertext. This ensures that we can read
+	// everything out precisely later.
 	b := &bytes.Buffer{}
-	if err := gob.NewEncoder(b).Encode(ct); err != nil {
+	if err := gob.NewEncoder(b).Encode(header); err != nil {
 		return err
 	}
-	bLen := int64(b.Len())
-	if err := binary.Write(w, binary.LittleEndian, bLen); err != nil {
+	headerSize := int64(b.Len())
+	if err := binary.Write(w, binary.LittleEndian, headerSize); err != nil {
 		return err
 	}
 	if _, err := io.Copy(w, b); err != nil {
@@ -121,14 +121,14 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 
 	mac := hmac.New(sha256.New, ks.MACKey)
 
-	var ctSize int64
+	var headerSize int64
 	if err := binary.Read(io.LimitReader(r, 8),
-		binary.LittleEndian, &ctSize); err != nil {
+		binary.LittleEndian, &headerSize); err != nil {
 		return err
 	}
 
-	var ct *ctPayload
-	if err := gob.NewDecoder(io.LimitReader(r, ctSize)).Decode(&ct); err != nil {
+	var header *ctHeader
+	if err := gob.NewDecoder(io.LimitReader(r, headerSize)).Decode(&header); err != nil {
 		return err
 	}
 	if _, err := io.Copy(io.MultiWriter(tmp, mac), r); err != nil {
@@ -139,7 +139,7 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	}
 
 	computedMac := mac.Sum(nil)
-	if !hmac.Equal(computedMac, ct.MAC) {
+	if !hmac.Equal(computedMac, header.MAC) {
 		return errors.New("HMAC values do not match")
 	}
 
@@ -147,7 +147,7 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	stream := cipher.NewCTR(ciph, ct.IV)
+	stream := cipher.NewCTR(ciph, header.IV)
 
 	rdr := cipher.StreamReader{
 		S: stream,
