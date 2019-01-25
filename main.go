@@ -15,10 +15,15 @@ var (
 func main() {
 	log.SetOutput(os.Stderr)
 
-	flag.BoolVar(&enc, "enc", false, "encrypt from stdin, writing output to stdout")
+	flag.BoolVar(&enc, "enc", true, "encrypt from stdin, writing output to stdout")
 	flag.BoolVar(&dec, "dec", false, "decrypt from stdin, writing output to stdout")
 	flag.StringVar(&keyFile, "key", "", "the path to the key")
 	flag.Parse()
+
+	// Only one of enc or dec should be true.
+	if dec {
+		enc = false
+	}
 
 	switch {
 	case enc:
