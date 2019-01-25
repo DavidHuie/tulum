@@ -1,5 +1,9 @@
 # Tulum
 
+<p align="center">
+    <img src="https://github.com/DavidHuie/tulum/raw/master/images/tulum.jpg" width="50%" height="50%">
+</p>
+
 Tulum is a simple tool for encrypting and decrypting data without any
 knowledge of cryptography. Tulum only has two, zero configuration
 operations, preventing confusion and user error. By default, Tulum
@@ -14,7 +18,7 @@ Unix CLI tools.
 
 With Go 1.11+, Tulum can be installed as follows:
 ```shell
-go install -u github.com/DavidHuie/tulum
+go get -u github.com/DavidHuie/tulum
 ```
 
 ## Usage
