@@ -144,10 +144,10 @@ func getKey(path string) ([]byte, error) {
 		return nil, nil
 	}
 
-	k := make([]byte, keySizeBytes+nonceSizeBytes)
+	k := make([]byte, keySizeBytes)
 	if _, err := hex.Decode(k, b.Bytes()); err != nil {
 		return nil, nil
 	}
 
-	return k[:keySizeBytes], nil
+	return k, nil
 }
