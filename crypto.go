@@ -39,12 +39,8 @@ func encrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
-	out := hex.NewEncoder(w)
 	ct := aead.Seal(nil, key.nonce, pt, nil)
-	if _, err := io.Copy(out, bytes.NewBuffer(ct)); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, "\n"); err != nil {
+	if _, err := io.Copy(w, bytes.NewBuffer(ct)); err != nil {
 		return err
 	}
 
@@ -56,14 +52,8 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	ctHex, err := ioutil.ReadAll(r)
+	ct, err := ioutil.ReadAll(r)
 	if err != nil {
-		return err
-	}
-
-	trimmed := bytes.Trim(ctHex, "\n")
-	ct := make([]byte, len(trimmed)/2)
-	if _, err := hex.Decode(ct, trimmed); err != nil {
 		return err
 	}
 
