@@ -11,7 +11,7 @@ operations, preventing confusion and user error.
 Tulum's provides sane defaults for most users. For cryptography, Tulum
 uses 256-bit AES-CTR encryption with HMAC-SHA-256 in an
 encrypt-then-MAC configuration, which provides authenticated
-encryption (decryption fails if an adversary modifes the encrypted
+encryption (decryption fails if an adversary modifies the encrypted
 data). Additionally, Tulum always generates a new key for each
 encryption operation, preventing key reuse. Tulum uses stdin and
 stdout for IO operations, allowing the user to extend Tulum with other
