@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"log"
 	"os"
@@ -28,7 +29,8 @@ func main() {
 
 	switch {
 	case enc:
-		if err := encrypt(os.Stdin, os.Stdout, keyFile); err != nil {
+		if err := encrypt(os.Stdin,
+			os.Stdout, rand.Reader, keyFile); err != nil {
 			log.Fatalf("Error encrypting: %s", err)
 		}
 	case dec:
