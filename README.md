@@ -6,8 +6,11 @@
 
 Tulum is a simple tool for encrypting and decrypting data without any
 knowledge of cryptography. Tulum only has two, zero configuration
-operations, preventing confusion and user error. By default, Tulum
-uses 128-bit AES-GCM encryption, which provides both encryption and
+operations, preventing confusion and user error.
+
+Tulum's provides sane defaults for most users. For cryptography, Tulum
+uses 256-bit AES-CTR encryption with a HMAC-SHA-256 MAC in an
+encrypt-then-MAC configuration, which provides both encryption and
 authentication (decryption fails if the encrypted data is
 modified). Additionally, Tulum always generates a new key for each
 encryption operation, preventing key reuse. Tulum uses stdin and
