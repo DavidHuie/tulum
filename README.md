@@ -9,10 +9,10 @@ knowledge of cryptography. Tulum only has two, zero-configuration
 operations, preventing confusion and user error.
 
 Tulum's provides sane defaults for most users. For cryptography, Tulum
-uses 256-bit AES-CTR encryption with a HMAC-SHA-256 MAC in an
-encrypt-then-MAC configuration, which provides both encryption and
-authentication (decryption fails if the encrypted data is
-modified). Additionally, Tulum always generates a new key for each
+uses 256-bit AES-CTR encryption with HMAC-SHA-256 in an
+encrypt-then-MAC configuration, which provides authenticated
+encryption (decryption fails if an adversary modifes the encrypted
+data). Additionally, Tulum always generates a new key for each
 encryption operation, preventing key reuse. Tulum uses stdin and
 stdout for IO operations, allowing the user to extend Tulum with other
 Unix CLI tools.
