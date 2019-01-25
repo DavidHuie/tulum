@@ -5,7 +5,7 @@
 </p>
 
 Tulum is a simple tool for encrypting and decrypting data without any
-knowledge of cryptography. Tulum only has two, zero configuration
+knowledge of cryptography. Tulum only has two, zero-configuration
 operations, preventing confusion and user error.
 
 Tulum's provides sane defaults for most users. For cryptography, Tulum
