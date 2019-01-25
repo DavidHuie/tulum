@@ -23,10 +23,6 @@ func main() {
 	switch {
 	case enc:
 		if keyFile == "" {
-			if _, err := os.Stat("key.asc"); !os.IsNotExist(err) {
-				log.Fatal("Key path not provided.")
-			}
-
 			log.Printf("Key path not provided, using key.asc.")
 			keyFile = "key.asc"
 		}

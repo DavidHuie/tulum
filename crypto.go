@@ -4,59 +4,115 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 )
 
 const (
-	keySizeBytes   = 16
-	nonceSizeBytes = 12
+	encKeySize = 32
+	macKeySize = 32
+	encIVSize  = 16
 )
 
 type message struct {
-	CT    []byte
-	Nonce []byte
+	IV     []byte
+	MAC    []byte
+	CTSize int64
+}
+
+type keys struct {
+	EncKey []byte
+	MACKey []byte
 }
 
 func encrypt(r io.Reader, w io.Writer, keyPath string) error {
-	key, err := randBytes(rand.Reader, keySizeBytes)
+	encKey, err := randBytes(rand.Reader, encKeySize)
 	if err != nil {
 		return err
 	}
-	nonce, err := randBytes(rand.Reader, nonceSizeBytes)
+	macKey, err := randBytes(rand.Reader, macKeySize)
 	if err != nil {
 		return err
 	}
-
-	ciph, err := aes.NewCipher(key)
-	if err != nil {
-		return err
-	}
-	aead, err := cipher.NewGCM(ciph)
+	iv, err := randBytes(rand.Reader, encIVSize)
 	if err != nil {
 		return err
 	}
 
-	pt, err := ioutil.ReadAll(r)
+	// Store the ciphertext here temporarily so that we can use
+	// streams
+	tmp, err := ioutil.TempFile("/tmp", "tulum-")
+	if err != nil {
+		return err
+	}
+	defer tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	// MAC with HMAC-SHA-256
+	mac := hmac.New(sha256.New, macKey)
+
+	// Encrypt with AES-256-CTR
+	ciph, err := aes.NewCipher(encKey)
 	if err != nil {
 		return err
 	}
 
-	ct := aead.Seal(nil, nonce, pt, nil)
+	stream := cipher.NewCTR(ciph, iv)
+
+	wr := cipher.StreamWriter{
+		S: stream,
+		W: io.MultiWriter(tmp, mac),
+	}
+
+	ctSize, err := io.Copy(wr, r)
+	if err != nil {
+		return err
+	}
+	if err := wr.Close(); err != nil {
+		return err
+	}
+	if _, err := tmp.Seek(0, 0); err != nil {
+		return err
+	}
 
 	msg := &message{
-		CT:    ct,
-		Nonce: nonce,
+		IV:     iv,
+		MAC:    mac.Sum(nil),
+		CTSize: ctSize,
 	}
 
-	if err := gob.NewEncoder(w).Encode(msg); err != nil {
+	// Store msg's size as an int64 in w, followed by msg and the
+	// ciphertext. This ensures that we can read out msg precisely
+	// later.
+	b := &bytes.Buffer{}
+	if err := gob.NewEncoder(b).Encode(msg); err != nil {
 		return err
 	}
-	if err := persistKey(key, keyPath); err != nil {
+	bLen := int64(b.Len())
+	if err := binary.Write(w, binary.LittleEndian, bLen); err != nil {
+		return err
+	}
+	if _, err := io.Copy(w, b); err != nil {
+		return err
+	}
+	if _, err := io.Copy(w, tmp); err != nil {
+		return err
+	}
+
+	ks := &keys{
+		EncKey: encKey,
+		MACKey: macKey,
+	}
+
+	if err := persistKeys(ks, keyPath); err != nil {
 		return err
 	}
 
@@ -64,31 +120,52 @@ func encrypt(r io.Reader, w io.Writer, keyPath string) error {
 }
 
 func decrypt(r io.Reader, w io.Writer, keyPath string) error {
-	key, err := getKey(keyPath)
+	ks, err := getKeys(keyPath)
 	if err != nil {
+		return err
+	}
+	tmp, err := ioutil.TempFile("/tmp", "tulum-")
+	if err != nil {
+		return err
+	}
+	defer tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	mac := hmac.New(sha256.New, ks.MACKey)
+
+	var msgSize int64
+	if err := binary.Read(io.LimitReader(r, 8),
+		binary.LittleEndian, &msgSize); err != nil {
 		return err
 	}
 
 	var msg *message
-	if err := gob.NewDecoder(r).Decode(&msg); err != nil {
+	if err := gob.NewDecoder(io.LimitReader(r, msgSize)).Decode(&msg); err != nil {
+		return err
+	}
+	if _, err := io.Copy(io.MultiWriter(tmp, mac), r); err != nil {
+		return err
+	}
+	if _, err := tmp.Seek(0, 0); err != nil {
 		return err
 	}
 
-	ciph, err := aes.NewCipher(key)
-	if err != nil {
-		return err
-	}
-	aead, err := cipher.NewGCM(ciph)
-	if err != nil {
-		return err
+	computedMac := mac.Sum(nil)
+	if !hmac.Equal(computedMac, msg.MAC) {
+		return errors.New("HMAC values do not match")
 	}
 
-	pt, err := aead.Open(nil, msg.Nonce, msg.CT, nil)
+	ciph, err := aes.NewCipher(ks.EncKey)
 	if err != nil {
 		return err
 	}
+	stream := cipher.NewCTR(ciph, msg.IV)
 
-	if _, err := io.Copy(w, bytes.NewBuffer(pt)); err != nil {
+	rdr := cipher.StreamReader{
+		S: stream,
+		R: tmp,
+	}
+	if _, err := io.Copy(w, rdr); err != nil {
 		return err
 	}
 
@@ -103,20 +180,16 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func persistKey(key []byte, path string) error {
+func persistKeys(ks *keys, path string) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	b := bytes.NewBuffer(nil)
-	if _, err := b.Write(key); err != nil {
-		return err
-	}
-
 	enc := hex.NewEncoder(f)
-	if _, err := io.Copy(enc, b); err != nil {
+
+	if err := gob.NewEncoder(enc).Encode(ks); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(f, "\n"); err != nil {
@@ -126,28 +199,17 @@ func persistKey(key []byte, path string) error {
 	return nil
 }
 
-func getKey(path string) ([]byte, error) {
+func getKeys(path string) (*keys, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	encodedKeyBytes := 2 * keySizeBytes
-
-	b := &bytes.Buffer{}
-	s, err := io.CopyN(b, f, int64(encodedKeyBytes))
-	if err != nil {
-		return nil, nil
-	}
-	if s != int64(encodedKeyBytes) {
-		return nil, nil
+	var ks *keys
+	if err := gob.NewDecoder(hex.NewDecoder(f)).Decode(&ks); err != nil {
+		return nil, err
 	}
 
-	k := make([]byte, keySizeBytes)
-	if _, err := hex.Decode(k, b.Bytes()); err != nil {
-		return nil, nil
-	}
-
-	return k, nil
+	return ks, nil
 }
