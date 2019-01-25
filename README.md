@@ -5,10 +5,13 @@
 </p>
 
 Tulum is a simple tool for encrypting and decrypting data without any
-knowledge of cryptography. Tulum only has two, zero-configuration
-operations, preventing confusion and user error. Tulum was designed
-to adhere to the [UNIX philosophy](https://en.wikipedia.org/wiki/Unix_philosophy)
-by both being composable and doing one thing well.
+knowledge of cryptography. Tulum has only two, zero-configuration
+operations, preventing confusion and user error. Tulum was designed to
+adhere to the [UNIX
+philosophy](https://en.wikipedia.org/wiki/Unix_philosophy) by both
+being composable and doing one thing well. In comparison to tools like
+OpenSSL and GPG, Tulum is considerably easier to use for symmetric
+encryption.
 
 Tulum's provides sane defaults for most users. For cryptography, Tulum
 uses 256-bit AES-CTR encryption with HMAC-SHA-256 in an
