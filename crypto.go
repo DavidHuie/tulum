@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/gob"
 	"encoding/hex"
 	"io"
 	"io/ioutil"
@@ -16,16 +17,22 @@ const (
 	nonceSizeBytes = 12
 )
 
+type message struct {
+	ciphertext []byte
+	nonce      []byte
+}
+
 func encrypt(r io.Reader, w io.Writer, keyPath string) error {
-	key, err := generateKey(rand.Reader)
+	key, err := randBytes(rand.Reader, keySizeBytes)
 	if err != nil {
 		return err
 	}
-	if err := persistKey(key, keyPath); err != nil {
+	nonce, err := randBytes(rand.Reader, nonceSizeBytes)
+	if err != nil {
 		return err
 	}
 
-	ciph, err := aes.NewCipher(key.key)
+	ciph, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
@@ -39,8 +46,18 @@ func encrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
-	ct := aead.Seal(nil, key.nonce, pt, nil)
-	if _, err := io.Copy(w, bytes.NewBuffer(ct)); err != nil {
+	ct := aead.Seal(nil, nonce, pt, nil)
+
+	msg := &message{
+		ciphertext: ct,
+		nonce:      nonce,
+	}
+
+	if err := gob.NewEncoder(w).Encode(msg); err != nil {
+		return err
+	}
+
+	if err := persistKey(key, keyPath); err != nil {
 		return err
 	}
 
@@ -52,12 +69,13 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	ct, err := ioutil.ReadAll(r)
-	if err != nil {
+
+	var msg *message
+	if err := gob.NewDecoder(r).Decode(&msg); err != nil {
 		return err
 	}
 
-	ciph, err := aes.NewCipher(key.key)
+	ciph, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
@@ -66,7 +84,7 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
-	pt, err := aead.Open(nil, key.nonce, ct, nil)
+	pt, err := aead.Open(nil, msg.nonce, msg.ciphertext, nil)
 	if err != nil {
 		return err
 	}
@@ -78,26 +96,15 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	return nil
 }
 
-type key struct {
-	key   []byte
-	nonce []byte
-}
-
-func generateKey(r io.Reader) (*key, error) {
-	k, n := &bytes.Buffer{}, &bytes.Buffer{}
-	if _, err := io.CopyN(k, r, keySizeBytes); err != nil {
+func randBytes(r io.Reader, n int64) ([]byte, error) {
+	b := &bytes.Buffer{}
+	if _, err := io.CopyN(b, r, n); err != nil {
 		return nil, err
 	}
-	if _, err := io.CopyN(n, r, nonceSizeBytes); err != nil {
-		return nil, err
-	}
-	return &key{
-		key:   k.Bytes(),
-		nonce: n.Bytes(),
-	}, nil
+	return b.Bytes(), nil
 }
 
-func persistKey(key *key, path string) error {
+func persistKey(key []byte, path string) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
@@ -105,10 +112,7 @@ func persistKey(key *key, path string) error {
 	defer f.Close()
 
 	b := bytes.NewBuffer(nil)
-	if _, err := b.Write(key.key); err != nil {
-		return err
-	}
-	if _, err := b.Write(key.nonce); err != nil {
+	if _, err := b.Write(key); err != nil {
 		return err
 	}
 
@@ -123,14 +127,14 @@ func persistKey(key *key, path string) error {
 	return nil
 }
 
-func getKey(path string) (*key, error) {
+func getKey(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	encodedKeyBytes := 2 * (keySizeBytes + nonceSizeBytes)
+	encodedKeyBytes := 2 * keySizeBytes
 
 	b := &bytes.Buffer{}
 	s, err := io.CopyN(b, f, int64(encodedKeyBytes))
@@ -146,8 +150,5 @@ func getKey(path string) (*key, error) {
 		return nil, nil
 	}
 
-	return &key{
-		key:   k[:keySizeBytes],
-		nonce: k[keySizeBytes:],
-	}, nil
+	return k[:keySizeBytes], nil
 }
