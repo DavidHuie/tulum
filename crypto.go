@@ -189,7 +189,8 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	}
 	defer f.Close()
 
-	enc := base64.NewEncoder(base64.StdEncoding, f)
+	b := &bytes.Buffer{}
+	enc := base64.NewEncoder(base64.StdEncoding, b)
 
 	if err := gob.NewEncoder(enc).Encode(ks); err != nil {
 		return nil, err
@@ -197,8 +198,26 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	if err := enc.Close(); err != nil {
 		return nil, err
 	}
-	if _, err := io.WriteString(f, "\n"); err != nil {
-		return nil, err
+
+	// Add line wrapping to the key so that it matches the output
+	// by `base64`.
+	line := make([]byte, 76)
+	for {
+		n, err := b.Read(line)
+		if n > 0 {
+			if _, err := f.Write(line); err != nil {
+				return nil, err
+			}
+			if _, err := f.WriteString("\n"); err != nil {
+				return nil, err
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ks, nil
