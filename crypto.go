@@ -26,8 +26,7 @@ const (
 	encIVSize     = 16
 	hashSize      = 32
 
-	base64LineSize = 76
-	keyAttributes  = 0600
+	keyAttributes = 0600
 )
 
 type ctHeader struct {
