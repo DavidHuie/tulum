@@ -252,13 +252,15 @@ func getKeys(path string) (*keys, error) {
 }
 
 func gc() {
-	gcOnce.Do(func() {
-		for _, c := range toGC {
-			c()
+	gcLock.Lock()
+	defer gcLock.Unlock()
 
-		}
-		close(done)
-	})
+	for _, c := range toGC {
+		c()
+
+	}
+
+	toGC = []func(){}
 }
 
 func init() {

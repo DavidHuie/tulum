@@ -14,9 +14,8 @@ var (
 	dec     bool
 	keyFile string
 	toGC    []func()
-
-	done   = make(chan bool)
-	gcOnce = &sync.Once{}
+	done    = make(chan bool)
+	gcLock  = &sync.Mutex{}
 )
 
 func main() {
@@ -68,5 +67,5 @@ func main() {
 		flag.Usage()
 	}
 
-	<-done
+	gc()
 }
