@@ -15,12 +15,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"golang.org/x/crypto/hkdf"
 )
 
 const (
-	encKeySize = 32
-	macKeySize = 32
-	encIVSize  = 16
+	sourceKeySize = 32
+	encKeySize    = 32
+	macKeySize    = 32
+	encIVSize     = 16
+	hashSize      = 32
 
 	base64LineSize = 76
 	keyAttributes  = 0600
@@ -172,26 +176,47 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 }
 
 func randBytes(r io.Reader, n int64) ([]byte, error) {
-	b := &bytes.Buffer{}
-	if _, err := io.CopyN(b, r, n); err != nil {
+	data := make([]byte, hashSize)
+	if _, err := io.ReadFull(r, data); err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+
+	key := make([]byte, n)
+	hkdf := hkdf.New(sha256.New, data, nil, nil)
+	if _, err := io.ReadFull(hkdf, key); err != nil {
+		return nil, err
+	}
+
+	return key, nil
 }
 
-func genKeys(path string, rand io.Reader) (*keys, error) {
-	encKey, err := randBytes(rand, encKeySize)
-	if err != nil {
+func deriveKeys(source []byte) (*keys, error) {
+	derived := make([]byte, encKeySize+macKeySize)
+	hkdf := hkdf.New(sha256.New, source, nil, nil)
+	if _, err := io.ReadFull(hkdf, derived); err != nil {
 		return nil, err
 	}
-	macKey, err := randBytes(rand, macKeySize)
-	if err != nil {
-		return nil, err
-	}
+
+	encKey := derived[:encKeySize]
+	macKey := derived[encKeySize : encKeySize+macKeySize]
 
 	ks := &keys{
 		EncKey: encKey,
 		MACKey: macKey,
+	}
+
+	return ks, nil
+}
+
+func genKeys(path string, rand io.Reader) (*keys, error) {
+	sourceKey, err := randBytes(rand, sourceKeySize)
+	if err != nil {
+		return nil, err
+	}
+
+	ks, err := deriveKeys(sourceKey)
+	if err != nil {
+		return nil, err
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, keyAttributes)
@@ -200,35 +225,15 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	}
 	defer f.Close()
 
-	b := &bytes.Buffer{}
-	enc := base64.NewEncoder(base64.StdEncoding, b)
-
-	if err := gob.NewEncoder(enc).Encode(ks); err != nil {
+	enc := base64.NewEncoder(base64.StdEncoding, f)
+	if _, err := enc.Write(sourceKey); err != nil {
 		return nil, err
 	}
 	if err := enc.Close(); err != nil {
 		return nil, err
 	}
-
-	// Add line wrapping to the key so that it matches the output
-	// of `base64`.
-	line := make([]byte, base64LineSize)
-	for {
-		n, err := b.Read(line)
-		if n > 0 {
-			if _, err := f.Write(line); err != nil {
-				return nil, err
-			}
-			if _, err := f.WriteString("\n"); err != nil {
-				return nil, err
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
+	if _, err := f.WriteString("\n"); err != nil {
+		return nil, err
 	}
 
 	return ks, nil
@@ -242,13 +247,17 @@ func getKeys(path string) (*keys, error) {
 	defer f.Close()
 
 	dec := base64.NewDecoder(base64.StdEncoding, f)
-
-	var ks *keys
-	if err := gob.NewDecoder(dec).Decode(&ks); err != nil {
+	sourceKey := &bytes.Buffer{}
+	if _, err := io.Copy(sourceKey, dec); err != nil {
 		return nil, err
 	}
 
-	return ks, nil
+	ks, err := deriveKeys(sourceKey.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return ks, err
 }
 
 func gc() {
