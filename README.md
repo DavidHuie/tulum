@@ -38,7 +38,7 @@ go get -u github.com/DavidHuie/tulum
 Tulum is a simple, fast, zero-configuration file encryption tool.
 
 Usage:
-	tulum [flags] [file]
+  tulum [flags] [file]
 
 Flags:
   -dec
