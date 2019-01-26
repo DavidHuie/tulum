@@ -53,3 +53,17 @@ func TestIntegration(t *testing.T) {
 		t.Fatal("invalid mode")
 	}
 }
+
+func TestRandBytes(t *testing.T) {
+	b1, err := randBytes(rand.Reader, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2, err := randBytes(rand.Reader, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(b1, b2) {
+		t.Fatal("rand bytes should not be equal")
+	}
+}

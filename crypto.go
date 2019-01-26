@@ -178,7 +178,7 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 	}
 
 	data := make([]byte, n)
-	hkdf := hkdf.New(hash, data, nil, nil)
+	hkdf := hkdf.New(hash, source, nil, nil)
 	if _, err := io.ReadFull(hkdf, data); err != nil {
 		return nil, err
 	}
