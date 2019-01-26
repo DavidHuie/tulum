@@ -4,6 +4,8 @@
     <img src="https://github.com/DavidHuie/tulum/raw/master/images/tulum.jpg" width="50%" height="50%">
 </p>
 
+[![CircleCI](https://circleci.com/gh/DavidHuie/tulum.svg?style=svg)](https://circleci.com/gh/DavidHuie/tulum)
+
 Tulum is a simple tool for encrypting and decrypting data without any
 knowledge of cryptography. Tulum has only two, zero-configuration
 operations, preventing confusion and user error. Tulum was designed to
