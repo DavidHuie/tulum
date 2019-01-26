@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	encKeySize = 32
-	macKeySize = 32
-	encIVSize  = 16
+	encKeySize     = 32
+	macKeySize     = 32
+	encIVSize      = 16
+	base64LineSize = 76
 )
 
 type ctHeader struct {
@@ -210,8 +211,8 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	}
 
 	// Add line wrapping to the key so that it matches the output
-	// by `base64`.
-	line := make([]byte, 76)
+	// of `base64`.
+	line := make([]byte, base64LineSize)
 	for {
 		n, err := b.Read(line)
 		if n > 0 {
