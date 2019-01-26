@@ -5,11 +5,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,21 +17,23 @@ import (
 	"syscall"
 
 	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
-	sourceKeySize = 32
-	encKeySize    = 32
-	macKeySize    = 32
-	encIVSize     = 16
+	encKeySize = 32
+	encIVSize  = 16
 
 	keyAttributes = 0600
 
-	hashSize = sha256.Size
+	base64LineLength = 76
 )
 
 var (
-	hash = sha256.New
+	hash     = sha3.New512
+	hashSize = hash().Size()
+
+	sourceKeySize = int64(hashSize)
 )
 
 type ctHeader struct {
@@ -63,7 +65,7 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	// MAC with HMAC-SHA-256
+	// MAC with HMAC-SHA3-512
 	mac := hmac.New(hash, ks.MACKey)
 
 	// Encrypt with AES-256-CTR
@@ -185,14 +187,14 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 }
 
 func deriveKeys(source []byte) (*keys, error) {
-	derived := make([]byte, encKeySize+macKeySize)
+	derived := make([]byte, encKeySize+hashSize)
 	hkdf := hkdf.New(hash, source, nil, nil)
 	if _, err := io.ReadFull(hkdf, derived); err != nil {
 		return nil, err
 	}
 
 	encKey := derived[:encKeySize]
-	macKey := derived[encKeySize : encKeySize+macKeySize]
+	macKey := derived[encKeySize : encKeySize+hashSize]
 
 	ks := &keys{
 		EncKey: encKey,
@@ -219,15 +221,32 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	}
 	defer f.Close()
 
-	enc := base64.NewEncoder(base64.StdEncoding, f)
+	b := &bytes.Buffer{}
+	enc := base64.NewEncoder(base64.StdEncoding, b)
 	if _, err := enc.Write(sourceKey); err != nil {
 		return nil, err
 	}
 	if err := enc.Close(); err != nil {
 		return nil, err
 	}
-	if _, err := f.WriteString("\n"); err != nil {
-		return nil, err
+
+	// Add line wrapping to the key so that it matches the output
+	// by `base64`.
+	line := make([]byte, base64LineLength)
+	for {
+		n, err := b.Read(line)
+		if n > 0 {
+			l := fmt.Sprintf("%s\n", string(line[:n]))
+			if _, err := f.WriteString(l); err != nil {
+				return nil, err
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ks, nil
