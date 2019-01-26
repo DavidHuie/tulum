@@ -24,6 +24,21 @@ encryption operation, preventing key reuse. Tulum uses stdin and
 stdout for IO operations, allowing the user to extend Tulum with other
 Unix CLI tools.
 
+## Background
+
+Tulum performs symmetric encryption, where a random string, called a
+key, is used to both encrypt and decrypt data. Without the key, it is
+practically impossible to decrypt an encrypted payload, providing the
+privacy features people expect. Tulum generates keys automatically, so
+keys are only really useful for decryption.
+
+Since the key enables decryption of your data, *store keys safely*!
+Keys should not be transferred with the encrypted data, and they
+should not be visible to other users on your computer (keys are
+assigned file attributes of `0600` by default). Additionally, Tulum
+generates a unique key for each encryption operation, so make sure
+that keys aren't confused between encrypted payloads.
+
 ## Installation
 
 With Go 1.11+, Tulum can be installed as follows:
