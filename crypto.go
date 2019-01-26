@@ -24,9 +24,14 @@ const (
 	encKeySize    = 32
 	macKeySize    = 32
 	encIVSize     = 16
-	hashSize      = 32
 
 	keyAttributes = 0600
+
+	hashSize = sha256.Size
+)
+
+var (
+	hash = sha256.New
 )
 
 type ctHeader struct {
@@ -53,19 +58,13 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	// Store the ciphertext here temporarily so that we can MAC it
-	// before sending it.
-	tmp, err := ioutil.TempFile("/tmp", "tulum-")
+	tmp, err := getTempfile()
 	if err != nil {
 		return err
 	}
-	toGC = append(toGC, func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	})
 
 	// MAC with HMAC-SHA-256
-	mac := hmac.New(sha256.New, ks.MACKey)
+	mac := hmac.New(hash, ks.MACKey)
 
 	// Encrypt with AES-256-CTR
 	ciph, err := aes.NewCipher(ks.EncKey)
@@ -124,16 +123,12 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
-	tmp, err := ioutil.TempFile("/tmp", "tulum-")
+	tmp, err := getTempfile()
 	if err != nil {
 		return err
 	}
-	toGC = append(toGC, func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	})
 
-	mac := hmac.New(sha256.New, ks.MACKey)
+	mac := hmac.New(hash, ks.MACKey)
 
 	var headerSize int64
 	if err := binary.Read(io.LimitReader(r, 8),
@@ -181,7 +176,7 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 	}
 
 	data := make([]byte, n)
-	hkdf := hkdf.New(sha256.New, data, nil, nil)
+	hkdf := hkdf.New(hash, data, nil, nil)
 	if _, err := io.ReadFull(hkdf, data); err != nil {
 		return nil, err
 	}
@@ -191,7 +186,7 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 
 func deriveKeys(source []byte) (*keys, error) {
 	derived := make([]byte, encKeySize+macKeySize)
-	hkdf := hkdf.New(sha256.New, source, nil, nil)
+	hkdf := hkdf.New(hash, source, nil, nil)
 	if _, err := io.ReadFull(hkdf, derived); err != nil {
 		return nil, err
 	}
@@ -259,13 +254,29 @@ func getKeys(path string) (*keys, error) {
 	return ks, err
 }
 
+func getTempfile() (*os.File, error) {
+	gcLock.Lock()
+	defer gcLock.Unlock()
+
+	tmp, err := ioutil.TempFile("/tmp", "tulum-")
+	if err != nil {
+		return tmp, err
+	}
+
+	toGC = append(toGC, func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	})
+
+	return tmp, nil
+}
+
 func gc() {
 	gcLock.Lock()
 	defer gcLock.Unlock()
 
 	for _, c := range toGC {
 		c()
-
 	}
 
 	toGC = []func(){}
