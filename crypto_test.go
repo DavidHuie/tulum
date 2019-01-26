@@ -9,6 +9,8 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
+	defer gc()
+
 	key, err := ioutil.TempFile("/tmp", "tulum-")
 	if err != nil {
 		t.Fatal(err)

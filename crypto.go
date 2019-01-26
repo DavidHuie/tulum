@@ -14,6 +14,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -34,6 +36,8 @@ type keys struct {
 }
 
 func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
+	defer gc()
+
 	ks, err := genKeys(keyPath, rand)
 	if err != nil {
 		return nil
@@ -50,8 +54,10 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	defer tmp.Close()
-	defer os.Remove(tmp.Name())
+	toGC = append(toGC, func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	})
 
 	// MAC with HMAC-SHA-256
 	mac := hmac.New(sha256.New, ks.MACKey)
@@ -106,6 +112,8 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 }
 
 func decrypt(r io.Reader, w io.Writer, keyPath string) error {
+	defer gc()
+
 	ks, err := getKeys(keyPath)
 	if err != nil {
 		fmt.Println("hey")
@@ -116,8 +124,10 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	if err != nil {
 		return err
 	}
-	defer tmp.Close()
-	defer os.Remove(tmp.Name())
+	toGC = append(toGC, func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	})
 
 	mac := hmac.New(sha256.New, ks.MACKey)
 
@@ -238,4 +248,24 @@ func getKeys(path string) (*keys, error) {
 	}
 
 	return ks, nil
+}
+
+func gc() {
+	gcOnce.Do(func() {
+		for _, c := range toGC {
+			c()
+
+		}
+		close(done)
+	})
+}
+
+func init() {
+	sigs := make(chan os.Signal)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	go func() {
+		<-sigs
+		gc()
+	}()
 }

@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 )
 
 var (
 	enc     bool
 	dec     bool
 	keyFile string
+	toGC    []func()
+
+	done   = make(chan bool)
+	gcOnce = &sync.Once{}
 )
 
 func main() {
@@ -62,4 +67,6 @@ func main() {
 	default:
 		flag.Usage()
 	}
+
+	<-done
 }
