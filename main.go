@@ -14,7 +14,6 @@ var (
 	dec     bool
 	keyFile string
 	toGC    []func()
-	done    = make(chan bool)
 	gcLock  = &sync.Mutex{}
 )
 
