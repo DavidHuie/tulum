@@ -55,15 +55,47 @@ func TestIntegration(t *testing.T) {
 }
 
 func TestRandBytes(t *testing.T) {
-	b1, err := randBytes(rand.Reader, 64)
+	b1, err := randBytes(rand.Reader, 32)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b2, err := randBytes(rand.Reader, 64)
+	b2, err := randBytes(rand.Reader, 32)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	t.Logf("%x", b1)
+	t.Logf("%x", b2)
+
 	if bytes.Equal(b1, b2) {
 		t.Fatal("rand bytes should not be equal")
+	}
+}
+
+func TestDeriveKeys(t *testing.T) {
+	s1 := []byte{1}
+	s2 := []byte{2}
+
+	ks1, err := deriveKeys(s1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ks2, err := deriveKeys(s2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ks1.EncKey) != encKeySize {
+		t.Fatal("invalid enc key size")
+	}
+	if len(ks1.MACKey) != hashSize {
+		t.Fatal("invalid mac key size")
+	}
+
+	if bytes.Equal(ks1.EncKey, ks2.EncKey) {
+		t.Fatal("keys should not match")
+	}
+	if bytes.Equal(ks1.MACKey, ks2.MACKey) {
+		t.Fatal("keys should not match")
 	}
 }
