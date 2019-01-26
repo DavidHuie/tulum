@@ -175,18 +175,18 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 }
 
 func randBytes(r io.Reader, n int64) ([]byte, error) {
-	data := make([]byte, hashSize)
-	if _, err := io.ReadFull(r, data); err != nil {
+	source := make([]byte, hashSize)
+	if _, err := io.ReadFull(r, source); err != nil {
 		return nil, err
 	}
 
-	key := make([]byte, n)
+	data := make([]byte, n)
 	hkdf := hkdf.New(sha256.New, data, nil, nil)
-	if _, err := io.ReadFull(hkdf, key); err != nil {
+	if _, err := io.ReadFull(hkdf, data); err != nil {
 		return nil, err
 	}
 
-	return key, nil
+	return data, nil
 }
 
 func deriveKeys(source []byte) (*keys, error) {
