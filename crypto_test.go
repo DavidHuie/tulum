@@ -16,6 +16,10 @@ func TestIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	key.Close()
+
+	// We just need a name, but the file should not exist. We'll
+	// create it elsewhere.
+	os.Remove(key.Name())
 	defer os.Remove(key.Name())
 
 	plaintext, err := randBytes(rand.Reader, 2048)
@@ -39,5 +43,13 @@ func TestIntegration(t *testing.T) {
 	}
 	if !bytes.Equal(newPT.Bytes(), plaintext) {
 		t.Fatal("decrypted plaintext should match original plaintext")
+	}
+
+	info, err := os.Stat(key.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode() != keyAttributes {
+		t.Fatal("invalid mode")
 	}
 }

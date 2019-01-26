@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,10 +18,12 @@ import (
 )
 
 const (
-	encKeySize     = 32
-	macKeySize     = 32
-	encIVSize      = 16
+	encKeySize = 32
+	macKeySize = 32
+	encIVSize  = 16
+
 	base64LineSize = 76
+	keyAttributes  = 0600
 )
 
 type ctHeader struct {
@@ -41,7 +42,7 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 
 	ks, err := genKeys(keyPath, rand)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	iv, err := randBytes(rand, encIVSize)
@@ -117,7 +118,6 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 
 	ks, err := getKeys(keyPath)
 	if err != nil {
-		fmt.Println("hey")
 		return err
 	}
 
@@ -194,7 +194,7 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 		MACKey: macKey,
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, keyAttributes)
 	if err != nil {
 		return nil, err
 	}
