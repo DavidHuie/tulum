@@ -52,6 +52,11 @@ go get -u github.com/DavidHuie/tulum
 % tulum -h
 Tulum is a simple, fast, zero-configuration file encryption tool.
 
+Tulum uses the following cryptography:
+  Encryption: AES-256 in counter mode
+  MAC: HMAC with SHA-256
+  Key derivation: HKDF with SHA-256
+
 Usage:
   tulum [flags] [file]
 

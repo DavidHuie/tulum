@@ -21,12 +21,18 @@ func main() {
 	log.SetOutput(os.Stderr)
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Tulum is a simple, fast, zero-configuration file encryption tool.\n")
-		fmt.Fprintln(flag.CommandLine.Output())
-		fmt.Fprintln(flag.CommandLine.Output(), "Usage:")
-		fmt.Fprintln(flag.CommandLine.Output(), "  tulum [flags] [file]")
-		fmt.Fprintln(flag.CommandLine.Output())
-		fmt.Fprintln(flag.CommandLine.Output(), "Flags:")
+		out := flag.CommandLine.Output()
+		fmt.Fprintln(out, "Tulum is a simple, fast, zero-configuration file encryption tool.")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Tulum uses the following cryptography:")
+		fmt.Fprintln(out, "  Encryption: AES-256 in counter mode")
+		fmt.Fprintln(out, "  MAC: HMAC with SHA-256")
+		fmt.Fprintln(out, "  Key derivation: HKDF with SHA-256")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Usage:")
+		fmt.Fprintln(out, "  tulum [flags] [file]")
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Flags:")
 		flag.PrintDefaults()
 	}
 
