@@ -54,7 +54,6 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 	if err != nil {
 		return err
 	}
-
 	iv, err := randBytes(rand, encIVSize)
 	if err != nil {
 		return err
@@ -65,20 +64,17 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	// MAC with HMAC-SHA3-512
 	mac := hmac.New(hash, ks.MACKey)
-
-	// Encrypt with AES-256-CTR
 	ciph, err := aes.NewCipher(ks.EncKey)
 	if err != nil {
 		return err
 	}
 
+	// Encrypt, calculating MAC on ciphertext.
 	aesWriter := cipher.StreamWriter{
 		S: cipher.NewCTR(ciph, iv),
 		W: io.MultiWriter(tmp, mac),
 	}
-
 	ctSize, err := io.Copy(aesWriter, r)
 	if err != nil {
 		return err
@@ -86,35 +82,67 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 	if err := aesWriter.Close(); err != nil {
 		return err
 	}
+
+	// Write header and ciphertext to writer.
 	if _, err := tmp.Seek(0, 0); err != nil {
 		return err
 	}
-
 	header := &ctHeader{
 		IV:     iv,
 		MAC:    mac.Sum(nil),
 		CTSize: ctSize,
 	}
-
-	// Store header's size as an int64 in w, followed by the
-	// header and the ciphertext. This ensures that we can read
-	// everything out precisely later.
-	b := &bytes.Buffer{}
-	if err := gob.NewEncoder(b).Encode(header); err != nil {
-		return err
-	}
-	headerSize := int64(b.Len())
-	if err := binary.Write(w, binary.LittleEndian, headerSize); err != nil {
-		return err
-	}
-	if _, err := io.Copy(w, b); err != nil {
-		return err
-	}
-	if _, err := io.Copy(w, tmp); err != nil {
+	if err := writeCiphertext(w, header, tmp); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func writeCiphertext(dest io.Writer, head *ctHeader, ct io.Reader) error {
+	// The encoded cipher text has the following binary format:
+	//
+	// 8 bytes - int64 size of header (s)
+	// s bytes - gob-encoded ctHeader (contains CTSize field)
+	// CTSize bytes - raw encrypted ciphertext
+
+	b := &bytes.Buffer{}
+	if err := gob.NewEncoder(b).Encode(head); err != nil {
+		return err
+	}
+
+	// Write the size of the header.
+	headerSize := int64(b.Len())
+	if err := binary.Write(dest, binary.LittleEndian, headerSize); err != nil {
+		return err
+	}
+
+	// Write the header.
+	if _, err := io.Copy(dest, b); err != nil {
+		return err
+	}
+
+	// Write the ciphertext.
+	if _, err := io.Copy(dest, ct); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readCiphertextHeader(r io.Reader) (*ctHeader, error) {
+	var headerSize int64
+	if err := binary.Read(io.LimitReader(r, 8),
+		binary.LittleEndian, &headerSize); err != nil {
+		return nil, err
+	}
+
+	var header *ctHeader
+	if err := gob.NewDecoder(io.LimitReader(r, headerSize)).Decode(&header); err != nil {
+		return nil, err
+	}
+
+	return header, nil
 }
 
 func decrypt(r io.Reader, w io.Writer, keyPath string) error {
@@ -130,36 +158,30 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 		return err
 	}
 
+	header, err := readCiphertextHeader(r)
+	if err != nil {
+		return err
+	}
+
+	// Check MAC.
 	mac := hmac.New(hash, ks.MACKey)
-
-	var headerSize int64
-	if err := binary.Read(io.LimitReader(r, 8),
-		binary.LittleEndian, &headerSize); err != nil {
-		return err
-	}
-
-	var header *ctHeader
-	if err := gob.NewDecoder(io.LimitReader(r, headerSize)).Decode(&header); err != nil {
-		return err
-	}
 	if _, err := io.Copy(io.MultiWriter(tmp, mac), r); err != nil {
 		return err
 	}
-	if _, err := tmp.Seek(0, 0); err != nil {
-		return err
-	}
-
 	computedMac := mac.Sum(nil)
 	if !hmac.Equal(computedMac, header.MAC) {
 		return errors.New("HMAC values do not match")
 	}
 
+	// Decrypt
 	ciph, err := aes.NewCipher(ks.EncKey)
 	if err != nil {
 		return err
 	}
 	stream := cipher.NewCTR(ciph, header.IV)
-
+	if _, err := tmp.Seek(0, 0); err != nil {
+		return err
+	}
 	rdr := cipher.StreamReader{
 		S: stream,
 		R: tmp,
