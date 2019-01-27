@@ -104,7 +104,7 @@ func writeCiphertext(dest io.Writer, head *ctHeader, ct io.Reader) error {
 	//
 	// 8 bytes - int64 size of header (s)
 	// s bytes - gob-encoded ctHeader (contains CTSize field)
-	// CTSize bytes - raw encrypted ciphertext
+	// CTSize bytes - raw ciphertext data
 
 	b := &bytes.Buffer{}
 	if err := gob.NewEncoder(b).Encode(head); err != nil {
