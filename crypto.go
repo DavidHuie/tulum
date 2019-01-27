@@ -24,7 +24,7 @@ const (
 	encKeySize = 32
 	encIVSize  = 16
 
-	keyAttributes = 0600
+	keyAttributes = 0400
 
 	base64LineLength = 76
 )

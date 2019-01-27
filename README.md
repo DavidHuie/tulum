@@ -35,7 +35,7 @@ keys are only really useful for decryption.
 Since the key enables decryption of your data, *store keys safely*!
 Keys should not be transferred with the encrypted data, and they
 should not be visible to other users on your computer (keys are
-assigned file attributes of `0600` by default). Additionally, Tulum
+assigned file attributes of `0400` by default). Additionally, Tulum
 generates a unique key for each encryption operation, so make sure
 that keys aren't confused between encrypted payloads.
 
