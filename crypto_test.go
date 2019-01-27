@@ -85,10 +85,10 @@ func TestDeriveKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(ks1.EncKey) != encKeySize {
+	if len(ks1.EncKey) != int(encKeySize) {
 		t.Fatal("invalid enc key size")
 	}
-	if len(ks1.MACKey) != hashSize {
+	if len(ks1.MACKey) != int(hashSize) {
 		t.Fatal("invalid mac key size")
 	}
 

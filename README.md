@@ -16,13 +16,14 @@ OpenSSL and GPG, Tulum is considerably easier to use for symmetric
 encryption.
 
 Tulum's provides sane defaults for most users. In terms of
-cryptography, Tulum offers 256-bits of security by using AES-256-CTR,
-HMAC-SHA3-512, and HKDF-SHA3-512. These cryptography modes provide
-authenticated encryption, where decryption fails if an adversary
-modifies the encrypted data. Additionally, Tulum always generates a
-new key for each encryption operation, preventing key reuse. Tulum
-uses stdin and stdout for IO operations, allowing the user to extend
-Tulum with other Unix CLI tools.
+cryptography, Tulum offers 256-bits of security by encrypting using
+AES-256-CTR, keyed BLAKE2b-512 as a MAC, and HKDF-BLAKE2b-512 for key
+derivation. These cryptography modes provide authenticated encryption,
+where decryption fails if an adversary modifies the encrypted
+data. Additionally, Tulum always generates a new key for each
+encryption operation, preventing key reuse. Tulum uses stdin and
+stdout for IO operations, allowing the user to extend Tulum with other
+Unix CLI tools.
 
 ## Background
 
@@ -54,8 +55,8 @@ Tulum is a simple, fast, zero-configuration file encryption tool.
 
 Tulum provides 256-bits of security using the following cryptography:
   Encryption: AES-256 in counter mode
-  MAC: HMAC with SHA3-512
-  Key derivation: HKDF with SHA3-512
+  MAC: Keyed BLAKE2b-512
+  Key derivation: HKDF with BLAKE2b-512
 
 Usage:
   tulum [flags] [file]

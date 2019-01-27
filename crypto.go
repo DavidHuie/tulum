@@ -10,14 +10,15 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/hkdf"
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -30,11 +31,17 @@ const (
 )
 
 var (
-	hash     = sha3.New512
-	hashSize = hash().Size()
-
-	sourceKeySize = int64(hashSize)
+	hashSize      = int64(blake2b.Size)
+	sourceKeySize = hashSize
 )
+
+func hashF() hash.Hash {
+	hash, err := blake2b.New512(nil)
+	if err != nil {
+		panic(err)
+	}
+	return hash
+}
 
 type ctHeader struct {
 	IV     []byte
@@ -64,7 +71,10 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	mac := hmac.New(hash, ks.MACKey)
+	mac, err := blake2b.New512(ks.MACKey)
+	if err != nil {
+		return err
+	}
 	ciph, err := aes.NewCipher(ks.EncKey)
 	if err != nil {
 		return err
@@ -164,7 +174,10 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	}
 
 	// Check MAC.
-	mac := hmac.New(hash, ks.MACKey)
+	mac, err := blake2b.New512(ks.MACKey)
+	if err != nil {
+		return err
+	}
 	if _, err := io.Copy(io.MultiWriter(tmp, mac), r); err != nil {
 		return err
 	}
@@ -200,7 +213,7 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 	}
 
 	data := make([]byte, n)
-	hkdf := hkdf.New(hash, source, nil, nil)
+	hkdf := hkdf.New(hashF, source, nil, nil)
 	if _, err := io.ReadFull(hkdf, data); err != nil {
 		return nil, err
 	}
@@ -210,7 +223,7 @@ func randBytes(r io.Reader, n int64) ([]byte, error) {
 
 func deriveKeys(source []byte) (*keys, error) {
 	derived := make([]byte, encKeySize+hashSize)
-	hkdf := hkdf.New(hash, source, nil, nil)
+	hkdf := hkdf.New(hashF, source, nil, nil)
 	if _, err := io.ReadFull(hkdf, derived); err != nil {
 		return nil, err
 	}
