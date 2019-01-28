@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -31,12 +30,12 @@ const (
 )
 
 var (
-	hashSize      = int64(blake2b.Size)
+	hashSize      = int64(32)
 	sourceKeySize = hashSize
 )
 
 func hashF() hash.Hash {
-	hash, err := blake2b.New512(nil)
+	hash, err := blake2b.New256(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +70,7 @@ func encrypt(r io.Reader, w io.Writer, rand io.Reader, keyPath string) error {
 		return err
 	}
 
-	mac, err := blake2b.New512(ks.MACKey)
+	mac, err := blake2b.New256(ks.MACKey)
 	if err != nil {
 		return err
 	}
@@ -174,7 +173,7 @@ func decrypt(r io.Reader, w io.Writer, keyPath string) error {
 	}
 
 	// Check MAC.
-	mac, err := blake2b.New512(ks.MACKey)
+	mac, err := blake2b.New256(ks.MACKey)
 	if err != nil {
 		return err
 	}
@@ -256,32 +255,15 @@ func genKeys(path string, rand io.Reader) (*keys, error) {
 	}
 	defer f.Close()
 
-	b := &bytes.Buffer{}
-	enc := base64.NewEncoder(base64.StdEncoding, b)
+	enc := base64.NewEncoder(base64.StdEncoding, f)
 	if _, err := enc.Write(sourceKey); err != nil {
 		return nil, err
 	}
 	if err := enc.Close(); err != nil {
 		return nil, err
 	}
-
-	// Add line wrapping to the key so that it matches the output
-	// by `base64`.
-	line := make([]byte, base64LineLength)
-	for {
-		n, err := b.Read(line)
-		if n > 0 {
-			l := fmt.Sprintf("%s\n", string(line[:n]))
-			if _, err := f.WriteString(l); err != nil {
-				return nil, err
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
+	if _, err := f.WriteString("\n"); err != nil {
+		return nil, err
 	}
 
 	return ks, nil

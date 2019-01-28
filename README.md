@@ -17,7 +17,7 @@ encryption.
 
 Tulum's provides sane defaults for most users. In terms of
 cryptography, Tulum offers 256-bits of security by encrypting using
-AES-256-CTR, keyed BLAKE2b-512 as a MAC, and HKDF-BLAKE2b-512 for key
+AES-256-CTR, keyed BLAKE2b-256 as a MAC, and HKDF-BLAKE2b-256 for key
 derivation. These cryptography modes provide authenticated encryption,
 where decryption fails if an adversary modifies the encrypted
 data. Additionally, Tulum always generates a new key for each
@@ -55,8 +55,8 @@ Tulum is a simple, fast, zero-configuration file encryption tool.
 
 Tulum provides 256-bits of security using the following cryptography:
   Encryption: AES-256 in counter mode
-  MAC: Keyed BLAKE2b-512
-  Key derivation: HKDF with BLAKE2b-512
+  MAC: Keyed BLAKE2b-256
+  Key derivation: HKDF with BLAKE2b-256
 
 Usage:
   tulum [flags] [file]
